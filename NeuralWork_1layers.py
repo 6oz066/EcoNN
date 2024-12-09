@@ -6,6 +6,10 @@ from tensorflow.keras import layers,models
 def normalize(series):
   return (series-series.mean(axis=0))/series.std(axis=0)
 
+def R2(y, y_hat):
+  R2 = 1 - np.sum((y - y_hat)**2) / np.sum(y**2)
+  return R2
+
 # Read the document
 df = pd.read_csv("data_lect_materials.csv")
 print(df.head())
@@ -32,13 +36,11 @@ train_dataset = tf.data.Dataset.from_tensor_slices((data_train, df_train[target]
 test_dataset = tf.data.Dataset.from_tensor_slices((data_test, df_test[target].values))
 
 # Hereby build the model
-nhid_1 = 4 # Hidden layer number for 1st
-nhid_2 = 4 # for 2st
+nhid_1 = 3 # Hidden layer number
 
 model = models.Sequential([
   layers.Input(shape=(len(feats),)),
-  layers.Dense(nhid_1, activation='tanh', input_shape=[len(df_train[target].values)]), # First hid layer
-  layers.Dense(nhid_2, activation='tanh', input_shape=[len(df_train[target].values)]), # Second hid layer
+  layers.Dense(nhid_1, activation='tanh', input_shape=[len(df_train[target].values)]), # hid layer
   layers.Dense(1) # Output layer
 ])
 
@@ -49,12 +51,18 @@ model.compile(loss='mse', optimizer=optimizer,metrics=['mse'])
 np.random.seed(6666)
 weight = [np.random.uniform(-0.01,0.01,size = (len(feats),nhid_1)),
           np.random.uniform(-0.01,0.01,size = nhid_1),
-          np.random.uniform(-0.01,0.01,size = (nhid_1,nhid_2)),
-          np.random.uniform(-0.01,0.01,size = nhid_2),
-          np.random.uniform(-0.01,0.01,size = (nhid_2,1)),
+          np.random.uniform(-0.01,0.01,size = (nhid_1,1)),
           np.random.uniform(-0.01,0.01,size = 1)]
 
 model.set_weights(weight)
 
 # Fit the model
-model.fit(train_dataset.batch(1),epochs=1,batch_size=128,)
+model.fit(train_dataset.batch(1),epochs=1,batch_size=128)
+
+# Summary
+model.summary()
+
+# Calculate R2
+test_predictions = model.predict(test_dataset.batch(1)).flatten()
+R2_Val = R2(df_test[target].values,test_predictions)
+print("The out of R2 value for one-layer model with size 3 is",round(R2_Val,3))
